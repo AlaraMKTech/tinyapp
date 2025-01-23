@@ -19,15 +19,21 @@
       </div>
     </div>
 
-    <form class="form-inline ml-auto" method="POST" action="/login">
-      <input
-        class="form-control mr-2"
-        type="text"
-        name="username"
-        placeholder="Enter username"
-        required
-      />
-      <button class="btn btn-light" type="submit">Login</button>
-    </form>
+    <% if (username) { %>
+      <span class="navbar-text mr-3">Hello, <%= username %>!</span>
+      <a class="nav-item nav-link" href="/logout">Logout</a>
+    <% } else { %>
+
+      <form class="form-inline ml-auto" method="POST" action="/login">
+        <input
+          class="form-control mr-2"
+          type="text"
+          name="username"
+          placeholder="Enter username"
+          required
+        />
+        <button class="btn btn-light" type="submit">Login</button>
+      </form>
+    <% } %>
   </nav>
 </header>
