@@ -14,7 +14,7 @@ app.get("/", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Example app listening on port ${PORT}!`);
+  console.log(`Tinyapp listening on port ${PORT}!`);
 });
 
 app.get("/urls.json", (req, res) => {
@@ -22,10 +22,17 @@ app.get("/urls.json", (req, res) => {
 });
 
 app.get("/hello", (req, res) => {
-    res.send("<html><body>Hello <b>World</b></body></html>\n");
+    res.send("<html><body>Hello World</body></html>\n");
 });
 
-  app.get("/urls", (req, res) => {
+app.get("/urls", (req, res) => {
     const templateVars = { urls: urlDatabase };
     res.render("urls_index", templateVars);
+});
+
+app.get("/urls/:id", (req, res) => {
+    const shortURL = req.params.id;
+    const longURL = urlDatabase[shortURL];
+    const templateVars = { id: shortURL, longURL: longURL };
+    res.render("urls_show", templateVars);
 });
