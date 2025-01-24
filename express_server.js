@@ -8,12 +8,18 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 const users = {};
-
-
-
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com",
+};
+
+const findUserByEmail = (email) => {
+  for (const userId in users) {
+    if (users[userId].email === email) {
+      return users[userId];
+    }
+  }
+  return null;
 };
 
 app.get("/register", (req, res) => {
@@ -27,6 +33,13 @@ app.get("/register", (req, res) => {
 
 app.post("/register", (req, res) => {
   const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).send("Email and password cannot be empty.");
+  };
+  const existingUser = findUserByEmail(email);
+  if (existingUser) {
+    return res.status(400).send("Email is already in use.");
+  };
   const userId = generateRandomString();
   users[userId] = {
     id: userId,
