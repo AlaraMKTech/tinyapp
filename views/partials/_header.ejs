@@ -18,20 +18,15 @@
         <a class="nav-item nav-link" href="/urls/new">Create New URL</a>
       </div>
     </div>
-    <% if (username) { %>
-      <span class="navbar-text mr-3">Hello, <%= username %>!</span>
+    <% if (user) { %>
+      <span class="navbar-text mr-3">Hello, <%= user.email %>!</span>
       <form class="form-inline ml-auto" method="POST" action="/logout">
         <button class="btn btn-light" type="submit">Log Out</button>
       </form>
     <% } else { %>
-      <form class="form-inline ml-auto" method="POST" action="/login">
-        <input
-          class="form-control mr-2"
-          type="text"
-          name="username"
-          placeholder="Enter username"
-        />
-        <button class="btn btn-light" type="submit">Login</button>
+      <form method="POST" action="/login" class="form-inline ml-auto">
+        <input class="form-control mr-2" type="text" name="username" placeholder="Enter username" required />
+        <button class="btn btn-light" type="submit">Log In</button>
       </form>
     <% } %>
   </nav>
