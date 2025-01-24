@@ -7,22 +7,35 @@ app.set("view engine", "ejs");
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+const users = {};
+
+
+
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com",
 };
 
 app.get("/register", (req, res) => {
+  const userId = req.cookies["user_id"];
+  const user = users[userId];
   const templateVars = {
-    username: req.cookies["username"],
+    user: user,
   };
   res.render("register", templateVars);
 });
 
 app.post("/register", (req, res) => {
   const { email, password } = req.body;
-  console.log(`Email: ${email}, Password: ${password}`);
-  res.send("Registration received!");
+  const userId = generateRandomString();
+  users[userId] = {
+    id: userId,
+    email: email,
+    password: password,
+  };
+  console.log(users);
+  res.cookie("user_id", userId);
+  res.redirect("/urls");
 });
 
 app.get("/login", (req, res) => {
@@ -56,27 +69,34 @@ app.get("/urls.json", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
+  const userId = req.cookies["user_id"];
+  const user = users[userId];
   const templateVars = {
-    username: req.cookies["username"],
+    user: user,
     urls: urlDatabase,
   };
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
+  const userId = req.cookies["user_id"];
+  const user = users[userId];
+  console.log("User from cookie:", user);
   const templateVars = {
-    username: req.cookies["username"],
+    user: user,
   };
   res.render("urls_new", templateVars);
 });
 
 app.get("/urls/:id", (req, res) => {
+  const userId = req.cookies["user_id"];
+  const user = users[userId];
   const shortURL = req.params.id;
   const longURL = urlDatabase[shortURL];
   const templateVars = {
+    user: user,
     id: shortURL,
     longURL: longURL,
-    username: req.cookies["username"],
   };
   res.render("urls_show", templateVars);
 });
