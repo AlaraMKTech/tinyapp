@@ -13,6 +13,14 @@ const urlDatabase = {
   "9sm5xK": "http://www.google.com",
 };
 
+app.get("/", (req, res) => {
+  res.send("Hello!");
+});
+
+app.listen(PORT, () => {
+  console.log(`Tinyapp listening on port ${PORT}!`);
+});
+
 const findUserByEmail = (email) => {
   for (const userId in users) {
     if (users[userId].email === email) {
@@ -52,10 +60,19 @@ app.post("/register", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
-  const templateVars = {
-    username: req.cookies["username"],
-  };
-  res.render("login", templateVars);
+  const userId = req.cookies["user_id"];
+  if (userId) {
+    return res.redirect("/urls");
+  }
+  res.render("login");
+});
+
+app.get("/register", (req, res) => {
+  const userId = req.cookies["user_id"];
+  if (userId) {
+    return res.redirect("/urls");
+  }
+  res.render("register");
 });
 
 app.get("/login", (req, res) => {
@@ -85,14 +102,6 @@ app.post("/logout", (req, res) => {
   res.redirect("/login");
 });
 
-app.get("/", (req, res) => {
-  res.send("Hello!");
-});
-
-app.listen(PORT, () => {
-  console.log(`Tinyapp listening on port ${PORT}!`);
-});
-
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
@@ -109,11 +118,11 @@ app.get("/urls", (req, res) => {
 
 app.get("/urls/new", (req, res) => {
   const userId = req.cookies["user_id"];
+  if (!userId) {
+    return res.redirect("/login");
+  }
   const user = users[userId];
-  console.log("User from cookie:", user);
-  const templateVars = {
-    user: user,
-  };
+  const templateVars = { user: user };
   res.render("urls_new", templateVars);
 });
 
@@ -138,10 +147,23 @@ app.post("/urls/:id", (req, res) => {
 });
 
 app.post("/urls", (req, res) => {
+  const userId = req.cookies["user_id"];
+  if (!userId) {
+    return res.status(403).send("You must be logged in to shorten URLs.");
+  }
   const longURL = req.body.longURL;
   const shortURL = generateRandomString();
   urlDatabase[shortURL] = longURL;
   res.redirect(`/urls/${shortURL}`);
+});
+
+app.get("/u/:id", (req, res) => {
+  const shortURL = req.params.id;
+  const longURL = urlDatabase[shortURL];
+  if (!longURL) {
+    return res.status(404).send("Error: Short URL not found.");
+  }
+  res.redirect(longURL);
 });
 
 app.post("/urls/:id/delete", (req, res) => {
