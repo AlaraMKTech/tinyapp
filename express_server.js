@@ -2,6 +2,7 @@ const express = require("express");
 const cookieSession = require("cookie-session");
 const bcrypt = require("bcryptjs");
 const { getUserByEmail } = require("./helpers");
+const { urlsForUser } = require("./helpers");
 const app = express();
 const PORT = 8080;
 
@@ -24,16 +25,6 @@ const urlDatabase = {
     userID: "aJ48lW",
   },
 };
-
-function urlsForUser(id) {
-  const userUrls = {};
-  for (const shortURL in urlDatabase) {
-    if (urlDatabase[shortURL].userID === id) {
-      userUrls[shortURL] = urlDatabase[shortURL];
-    }
-  }
-  return userUrls;
-}
 
 app.get("/", (req, res) => {
   res.send("Hello!");
