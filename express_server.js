@@ -1,6 +1,7 @@
 const express = require("express");
 const cookieSession = require("cookie-session");
 const bcrypt = require("bcryptjs");
+const { getUserByEmail } = require("./helpers");
 const app = express();
 const PORT = 8080;
 
@@ -42,15 +43,6 @@ app.listen(PORT, () => {
   console.log(`Tinyapp listening on port ${PORT}!`);
 });
 
-const findUserByEmail = (email) => {
-  for (const userId in users) {
-    if (users[userId].email === email) {
-      return users[userId];
-    }
-  }
-  return null;
-};
-
 app.get("/register", (req, res) => {
   if (req.session.user_id) {
     return res.redirect("/urls");
@@ -64,7 +56,7 @@ app.post("/register", (req, res) => {
     return res.status(400).send("Email and password cannot be empty.");
   }
 
-  const existingUser = findUserByEmail(email);
+  const existingUser = getUserByEmail(email);
   if (existingUser) {
     return res.status(400).send("Email is already in use.");
   }
@@ -90,7 +82,7 @@ app.get("/login", (req, res) => {
 
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
-  const user = findUserByEmail(email);
+  const user = getUserByEmail(email);
   if (!user || !bcrypt.compareSync(password, user.password)) {
     return res.status(403).send("Invalid email or password.");
   }
