@@ -1,19 +1,8 @@
+// REQUIREMENTS
 const express = require("express");
 const cookieSession = require("cookie-session");
 const bcrypt = require("bcryptjs");
-const { getUserByEmail } = require("./helpers");
-const { urlsForUser } = require("./helpers");
-const app = express();
-const PORT = 8080;
-
-app.set("view engine", "ejs");
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieSession({
-  name: 'session',
-  secret: 'angos-meleys',
-  maxAge: 24 * 60 * 60 * 1000
-}));
-
+const { getUserByEmail, urlsForUser, generateRandomString } = require("./helpers");
 const users = {};
 const urlDatabase = {
   b6UTxQ: {
@@ -26,18 +15,31 @@ const urlDatabase = {
   },
 };
 
+// SERVER SETUP AND MIDDLEWARE
+const app = express();
+const PORT = 8080;
+
+app.set("view engine", "ejs");
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieSession({
+  name: 'session',
+  secret: 'angos-meleys',
+  maxAge: 24 * 60 * 60 * 1000
+}));
+
+//ROUTES
 app.get("/", (req, res) => {
   res.send("Hello!");
-});
-
-app.listen(PORT, () => {
-  console.log(`Tinyapp listening on port ${PORT}!`);
 });
 
 app.get("/register", (req, res) => {
   const userId = req.session.user_id;
   const user = users[userId];
-  const templateVars = { user: user || null };
+  if (user) { 
+    return res.redirect("/urls")
+  }
+
+  const templateVars = { user: null };
   res.render("register", templateVars);
 });
 
@@ -53,29 +55,37 @@ app.post("/register", (req, res) => {
   }
 
   const hashedPassword = bcrypt.hashSync(password, 10);
-  const userId = generateRandomString();
-  users[userId] = {
-    id: userId,
-    email: email,
+  const id = generateRandomString();
+  users[id] = {
+    id,
+    email,
     password: hashedPassword,
   };
 
-  req.session.user_id = userId;
+  req.session.user_id = id;
   res.redirect("/urls");
 });
 
 app.get("/login", (req, res) => {
-  if (req.session.user_id) {
-    return res.redirect("/urls");
+  const userId = req.session.user_id;
+  const user = users[userId];
+  if (user) { 
+    return res.redirect("/urls")
   }
-  res.render("login");
+
+  const templateVars = { user: null };
+  res.render("login", templateVars);
 });
 
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).send("Email and password cannot be empty.");
+  }
+
   const user = getUserByEmail(email);
   if (!user || !bcrypt.compareSync(password, user.password)) {
-    return res.status(403).send("Invalid email or password.");
+    return res.status(403).send("Invalid credentials");
   }
 
   req.session.user_id = user.id;
@@ -93,16 +103,16 @@ app.get("/urls.json", (req, res) => {
 
 app.get("/urls", (req, res) => {
   const userId = req.session.user_id;
-  if (!userId) {
+  const user = users[userId];
+  if (!user) {
     return res.status(403).send("You must be logged in to view your URLs!");
   }
 
-  const user = users[userId];
-  const userUrls = urlsForUser(userId);
+  const urls = urlsForUser(userId, urlDatabase);
 
   const templateVars = {
-    user: user,
-    urls: userUrls,
+    user,
+    urls,
   };
 
   res.render("urls_index", templateVars);
@@ -110,25 +120,24 @@ app.get("/urls", (req, res) => {
 
 app.get("/urls/new", (req, res) => {
   const userId = req.session.user_id;
-  if (!userId) {
-    return res.redirect("/login");
-  }
   const user = users[userId];
-  const templateVars = { user: user };
+  if (!user) {
+    return res.status(403).send("You must be logged in to view your URLs!");
+  }
+
+  const templateVars = { user };
   res.render("urls_new", templateVars);
 });
 
 app.get("/urls/:id", (req, res) => {
   const userId = req.session.user_id;
-  const shortURL = req.params.id;
-
-  if (!userId) {
-    return res.status(403).send("You must be logged in to view a URL!");
+  const user = users[userId];
+  if (!user) {
+    return res.status(403).send("You must be logged in to view your URLs!");
   }
 
-  const user = users[userId];
+  const shortURL = req.params.id;
   const url = urlDatabase[shortURL];
-
   if (!url) {
     return res.status(404).send("Error: URL not found.");
   }
@@ -148,14 +157,13 @@ app.get("/urls/:id", (req, res) => {
 
 app.post("/urls/:id", (req, res) => {
   const userId = req.session.user_id;
-  const shortURL = req.params.id;
-
-  if (!userId) {
-    return res.status(403).send("You must be logged in to shorten a URL!");
+  const user = users[userId];
+  if (!user) {
+    return res.status(403).send("You must be logged in to view your URLs!");
   }
 
+  const shortURL = req.params.id;
   const url = urlDatabase[shortURL];
-
   if (!url) {
     return res.status(404).send("Error: URL not found.");
   }
@@ -164,21 +172,31 @@ app.post("/urls/:id", (req, res) => {
     return res.status(403).send("You do not own this URL.");
   }
 
+
   const updatedLongURL = req.body.longURL;
+  if (!updatedLongURL) {
+    return res.status(400).send("Error: You must provide a long URL to update.");
+  }
+
   urlDatabase[shortURL].longURL = updatedLongURL;
   res.redirect(`/urls/${shortURL}`);
 });
 
 app.post("/urls", (req, res) => {
   const userId = req.session.user_id;
-  if (!userId) {
-    return res.status(403).send("You must be logged in to shorten URLs.");
+  const user = users[userId];
+  if (!user) {
+    return res.status(403).send("You must be logged in to view your URLs!");
   }
 
   const longURL = req.body.longURL;
+  if (!longURL) {
+    return res.status(400).send("Error: You must provide a long URL to update.");
+  }
+
   const shortURL = generateRandomString();
   urlDatabase[shortURL] = {
-    longURL: longURL,
+    longURL,
     userID: userId,
   };
 
@@ -188,7 +206,6 @@ app.post("/urls", (req, res) => {
 app.get("/u/:id", (req, res) => {
   const shortURL = req.params.id;
   const url = urlDatabase[shortURL];
-
   if (!url) {
     return res.status(404).send("Error: Short URL not found.");
   }
@@ -198,14 +215,13 @@ app.get("/u/:id", (req, res) => {
 
 app.post("/urls/:id/delete", (req, res) => {
   const userId = req.session.user_id;
-  const shortURL = req.params.id;
-
-  if (!userId) {
-    return res.status(403).send("You must be logged in to delete a URL.");
+  const user = users[userId];
+  if (!user) {
+    return res.status(403).send("You must be logged in to view your URLs!");
   }
 
+  const shortURL = req.params.id;
   const url = urlDatabase[shortURL];
-
   if (!url) {
     return res.status(404).send("Error: URL not found.");
   }
@@ -218,12 +234,7 @@ app.post("/urls/:id/delete", (req, res) => {
   res.redirect("/urls");
 });
 
-function generateRandomString() {
-  const length = 6;
-  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return result;
-};
+// LISTENER (ACCEPT INCOMING REQUESTS)
+app.listen(PORT, () => {
+  console.log(`Tinyapp listening on port ${PORT}!`);
+});
